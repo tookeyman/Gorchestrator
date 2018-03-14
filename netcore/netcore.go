@@ -10,7 +10,7 @@ import (
 //returns a pointer to a socketWorker instance. The instance will already be active on the socket by the time you get it
 func GetSocketInstance() *socketWorker {
 	sock := &socketWorker{
-		running: true,
+		running:      true,
 		writeChannel: make(chan string),
 		readChannel:  make(chan string)}
 	sock.init()
@@ -51,20 +51,22 @@ func (sock *socketWorker) init() {
 }
 
 //handles reading and writing
-func (sock *socketWorker) run(){
+func (sock *socketWorker) run() {
 	defer fmt.Println("[socketWorker]\tWorker thread shut down...")
-	for sock.running{
+	for sock.running {
 		select {
-		case message:=<- sock.readChannel :
+		case message := <-sock.readChannel:
 			//@todo: make a function to handle io reads
 			fmt.Printf("%s\n", message)
-			case outGoing:= <-sock.writeChannel:
-				packet:= []byte(outGoing)
-				if packet[len(packet)-1] != byte('\n') {
-					packet = append(packet, byte('\n'))
-				}
-				sock.conn.Write(packet)
-				fmt.Printf("[socketWorker]\tWriting: %s", string(outGoing))
+			break
+		case outGoing := <-sock.writeChannel:
+			packet := []byte(outGoing)
+			if packet[len(packet)-1] != byte('\n') {
+				packet = append(packet, byte('\n'))
+			}
+			sock.conn.Write(packet)
+			fmt.Printf("[socketWorker]\tWriting: %s", string(outGoing))
+			break
 		}
 	}
 }
