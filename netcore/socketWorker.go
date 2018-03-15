@@ -2,19 +2,23 @@ package netcore
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
-	"time"
 )
 
 //returns a pointer to a socketWorker instance. The instance will already be active on the socket by the time you get it
-func GetSocketInstance() *socketWorker {
+func GetSocketInstance(callback func(string)) (*socketWorker, error) {
+	if callback == nil {
+		return nil, errors.New("attempted to create socketWorker without providing read callback")
+	}
 	sock := &socketWorker{
 		running:      true,
-		writeChannel: make(chan string),
-		readChannel:  make(chan string)}
+		writeChannel: make(chan string, 100),
+		readChannel:  make(chan string, 100),
+		readCallBack: callback}
 	sock.init()
-	return sock
+	return sock, nil
 }
 
 type socketWorker struct {
@@ -23,13 +27,7 @@ type socketWorker struct {
 	running      bool
 	writeChannel chan string
 	readChannel  chan string
-}
-
-//test function. call it to test things
-func (sock *socketWorker) Test() {
-	fmt.Println("Waiting for 1 minute")
-	time.Sleep(time.Minute * 1)
-	sock.running = false
+	readCallBack func(string)
 }
 
 func (sock *socketWorker) ToggleRunning() {
@@ -38,7 +36,10 @@ func (sock *socketWorker) ToggleRunning() {
 
 //initializes the connection
 func (sock *socketWorker) init() {
+	fmt.Println("Initializing socketWorker...")
 	connection, err := net.Dial("tcp", ":2112")
+	//@login
+	connection.Write([]byte(Login.String()))
 	if err != nil {
 		fmt.Printf("[socketWorker]\tERROR:%s\n", err)
 	}
@@ -53,11 +54,12 @@ func (sock *socketWorker) init() {
 //handles reading and writing
 func (sock *socketWorker) run() {
 	defer fmt.Println("[socketWorker]\tWorker thread shut down...")
+	fmt.Println("Reading and writing from socket...")
 	for sock.running {
 		select {
 		case message := <-sock.readChannel:
 			//@todo: make a function to handle io reads
-			fmt.Printf("%s\n", message)
+			sock.readCallBack(message)
 			break
 		case outGoing := <-sock.writeChannel:
 			packet := []byte(outGoing)
@@ -65,7 +67,7 @@ func (sock *socketWorker) run() {
 				packet = append(packet, byte('\n'))
 			}
 			sock.conn.Write(packet)
-			fmt.Printf("[socketWorker]\tWriting: %s", string(outGoing))
+			fmt.Printf("[socketWorker]\tWriting: %s\n", string(outGoing))
 			break
 		}
 	}
@@ -73,6 +75,7 @@ func (sock *socketWorker) run() {
 
 //constantly listens for new strings off of the socket and passes them to the read channel
 func (sock *socketWorker) listen() {
+	fmt.Println("Listening to socket...")
 	defer fmt.Println("[socketWorker]\tListening thread shut down...")
 	for sock.running {
 		message, err := sock.reader.ReadString(byte('\n'))

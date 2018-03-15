@@ -16,6 +16,7 @@ const (
 
 var packets = [...]string{
 	"LOGIN=Orchestrator;\tLOCALECHO 1\tNBMSGECHO 1\n",
+	"\tDISCONNECT\n",
 	"\tPONG\n",
 	"\tMSGALL\n",
 	"\tBCI\n",
