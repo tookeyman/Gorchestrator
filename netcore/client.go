@@ -36,8 +36,6 @@ func (cli *Client) SendCommandToCharacter(characterName string, command string) 
 }
 
 func (cli *Client) handleSocketRead(message string) {
-	//@todo: we need message handling for netbot packets, character struct creation, all the good stuff
-
 	netBots := regexp.MustCompile(`^.*NBPKT:(\w+):\[NB]\|(.*)\[NB]\n$`)
 	switch message {
 	case "\tPING\n":
@@ -47,11 +45,18 @@ func (cli *Client) handleSocketRead(message string) {
 	}
 
 	if netBots.MatchString(message) {
-		//works
+		matches := netBots.FindStringSubmatch(message)
+		netBotsPayload := [2]string{matches[1], matches[2]}
+		cli.handleNetbotsPacket(netBotsPayload)
 	} else {
 		fmt.Println(message)
 	}
 
+}
+
+func(cli *Client) handleNetbotsPacket(groups [2]string){
+	//@todo: we need message handling for netbot packets, character struct creation, all the good stuff
+	fmt.Printf("[NETBOTS]\tRECEIVED:%#v\n",groups)
 }
 
 func (cli *Client) Run() {
