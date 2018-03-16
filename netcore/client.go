@@ -51,7 +51,14 @@ func (cli *Client) handleSocketRead(message string) {
 	} else {
 		fmt.Println(message)
 	}
+}
 
+func (cli *Client) Disconnect(){
+	cli.socket.Write(Disconnect.String())
+}
+
+func (cli Client) Broadcast(message string) {
+	cli.socket.Write(fmt.Sprintf("%s %s", MsgAll, message))
 }
 
 func(cli *Client) handleNetbotsPacket(groups [2]string){
