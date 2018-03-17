@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	tick = 6 * time.Second
+)
+
 type Client struct {
 	socket     *socketWorker
 	asyncQue   map[string]*chan string
@@ -17,7 +21,12 @@ type Client struct {
 func (cli *Client) Test() {
 
 	fmt.Println("Waiting for one minute...")
-	time.Sleep(1 * time.Minute)
+	for i := 0; i < 10; i++ {
+		for key := range cli.characters {
+			fmt.Printf("[%s]\t%#v\n", key, *cli.characters[key])
+		}
+		time.Sleep(tick)
+	}
 	fmt.Println("Minute finished...")
 	cli.socket.ToggleRunning()
 	cli.Disconnect()
@@ -81,10 +90,10 @@ func (cli *Client) handleNetbotsPacket(groups [2]string) {
 		cha := character.GetCharacterInstance(groups[0], groups[1])
 		cli.characters[groups[0]] = cha
 	} else {
-		cha := *cli.characters[groups[0]]
+		println("updating ", groups[0])
+		cha := cli.characters[groups[0]]
 		cha.UpdateCharacter(groups[1])
 	}
-	fmt.Printf("[NETBOTS]\tRECEIVED:%#v\n", groups)
 }
 
 func (cli *Client) submitAsyncQuery(char string, response string, stringHandle *chan string) {

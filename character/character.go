@@ -7,11 +7,10 @@ import (
 )
 
 type Character struct {
-	name                                            string
+	name, casting                                   string
 	asyncChannel                                    chan string
 	buffs, buffDur                                  []string
 	hp, hpMax, mana, manaMax, end, endMax, id, zone int
-	casting                                         string
 	loc                                             *Location
 }
 
@@ -146,6 +145,9 @@ func (cha *Character) updatePart(id string, values string) {
 		break
 	case "Q":
 		//@research: what is this?
+		break
+	case "":
+		//it's retarded that we have to swallow this every time
 		break
 	default:
 		fmt.Println("Did not understand:\t", id)
