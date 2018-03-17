@@ -3,22 +3,18 @@ package netcore
 import (
 	"fmt"
 	"regexp"
-	"strconv"
+	//"strconv"
+	"eqbchook2/character"
 	"time"
 )
 
 type Client struct {
-	socket   *socketWorker
-	asyncQue map[string]*chan string
+	socket     *socketWorker
+	asyncQue   map[string]*chan string
+	characters map[string]*character.Character
 }
 
 func (cli *Client) Test() {
-	stringHandle := make(chan string)
-
-	for i := 0; i < 100; i++ {
-		cli.submitAsyncQuery("Prizzae", strconv.Itoa(i), &stringHandle)
-		fmt.Println(<-stringHandle)
-	}
 
 	fmt.Println("Waiting for one minute...")
 	time.Sleep(1 * time.Minute)
@@ -27,24 +23,31 @@ func (cli *Client) Test() {
 	cli.Disconnect()
 }
 
-func GetClientInstance() Client {
-	cli := Client{asyncQue: make(map[string]*chan string, 50 /*i dunno, seems good*/)}
+//creates a client, initializes it and returns its address
+func GetClientInstance() *Client {
+	cli := Client{
+		asyncQue:   make(map[string]*chan string, 50), /*i dunno, seems good*/
+		characters: make(map[string]*character.Character),
+	}
 	sock, err := GetSocketInstance(cli.handleSocketRead)
 	if err != nil {
 		fmt.Printf("[CLIENT]\tClient instance creation failed: %s\n", err)
 	}
 	cli.socket = sock
-	return cli
+	return &cli
 }
 
+//probably poorly named. sends the command string to the character name
 func (cli *Client) SendCommandToCharacter(characterName string, command string) {
 	packet := fmt.Sprintf("%s%s %s", Tell.String(), characterName, command)
 	cli.socket.Write(packet)
 }
 
+//this function is called every time we get a string in off of the socket. primary source of logic for how to route info
 func (cli *Client) handleSocketRead(message string) {
 	netBots := regexp.MustCompile(`^.*NBPKT:(\w+):\[NB]\|(.*)\[NB]\n$`)
 	asyncResponse := regexp.MustCompile(`^\[(\w+)] \[ASYNC](.*)\n$`)
+
 	switch message {
 	case "\tPING\n":
 		cli.socket.Write(Pong.String())
@@ -74,11 +77,18 @@ func (cli Client) Broadcast(message string) {
 }
 
 func (cli *Client) handleNetbotsPacket(groups [2]string) {
-	//@todo: we need message handling for netbot packets, character struct creation, all the good stuff
-	//fmt.Printf("[NETBOTS]\tRECEIVED:%#v\n",groups)
+	if cli.characters[groups[0]] == nil {
+		cha := character.GetCharacterInstance(groups[0], groups[1])
+		cli.characters[groups[0]] = cha
+	} else {
+		cha := *cli.characters[groups[0]]
+		cha.UpdateCharacter(groups[1])
+	}
+	fmt.Printf("[NETBOTS]\tRECEIVED:%#v\n", groups)
 }
 
 func (cli *Client) submitAsyncQuery(char string, response string, stringHandle *chan string) {
+	//@TODO we could probably make this completely nonblocking, but we can't enforce order without a request index, which we could do
 	payload := fmt.Sprintf("//bct Orchestrator [ASYNC]%s", response)
 	cli.asyncQue[char] = stringHandle
 	go func() {
