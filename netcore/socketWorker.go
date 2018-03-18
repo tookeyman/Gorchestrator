@@ -30,11 +30,12 @@ type socketWorker struct {
 	readCallBack func(string)
 }
 
+//basically only turns off the socket worker, no current way to restart
 func (sock *socketWorker) ToggleRunning() {
 	sock.running = !sock.running
 }
 
-//initializes the connection
+//initializes the connection, starts the io goroutines
 func (sock *socketWorker) init() {
 	fmt.Println("Initializing socketWorker...")
 	connection, err := net.Dial("tcp", ":2112")
@@ -58,7 +59,6 @@ func (sock *socketWorker) run() {
 	for sock.running {
 		select {
 		case message := <-sock.readChannel:
-			//@todo: make a function to handle io reads
 			sock.readCallBack(message)
 			break
 		case outGoing := <-sock.writeChannel:

@@ -6,34 +6,35 @@ import (
 	"strings"
 )
 
-type Character struct {
+type Actor struct {
 	name, casting                                   string
 	asyncChannel                                    chan string
 	buffs, buffDur                                  []string
 	hp, hpMax, mana, manaMax, end, endMax, id, zone int
+	tID, tPctHP                                     int
 	loc                                             *Location
 }
 
 type Location struct {
 	x, y, z float64
-	q       int64
+	q       int
 }
 
-func GetCharacterInstance(name string, netbotsPacket string) *Character {
-	cha := Character{
+func GetActorInstance(name string, netbotsPacket string) *Actor {
+	cha := Actor{
 		name:         name,
 		asyncChannel: make(chan string),
 	}
-	cha.UpdateCharacter(netbotsPacket)
+	cha.UpdateActor(netbotsPacket)
 	return &cha
 }
 
-func (cha *Character) UpdateCharacter(packet string) {
+func (cha *Actor) UpdateActor(packet string) {
 	cha.processNetbotsPacket(packet)
 	//@design: what else do we need to do on character update?
 }
 
-func (cha *Character) processNetbotsPacket(packet string) {
+func (cha *Actor) processNetbotsPacket(packet string) {
 	parts := strings.Split(packet, "|")
 	for _, part := range parts {
 		pack := strings.Split(part, "=")
@@ -46,7 +47,7 @@ func (cha *Character) processNetbotsPacket(packet string) {
 	}
 }
 
-func (cha *Character) updatePart(id string, values string) {
+func (cha *Actor) updatePart(id string, values string) {
 	switch id {
 	case "B":
 		cha.buffs = strings.Split(values, ":")
@@ -88,33 +89,53 @@ func (cha *Character) updatePart(id string, values string) {
 		break
 	case "W":
 		//@research: what is this?
+		fmt.Println("W:", values)
 		break
 	case "P":
 		//@research: what is this?
+		//pet?
 		break
 	case "G":
 		//@research: what is this?
+		fmt.Println("G:", values)
 		break
 	case "S":
 		//@research: what is this?
+		fmt.Println("S:", values)
 		break
 	case "Y":
-		//todo && @research:sit state
+		//todo && @research: sit state
+		//parsedLong, _ := strconv.ParseInt(values, 10, 64)
+		//fmt.Println("Sit State: ", strconv.FormatInt(parsedLong, 16))
+		//standingRest := 0x10
+		//standingMove := 02000
+		//if int(parsedLong) == standingRest{
+		//	fmt.Println("Standing, rest")
+		//}else if int(parsedLong) == (standingRest << 1){
+		//	fmt.Println("Sitting, rest")
+		//}else if int(parsedLong) == (standingRest >> 2){
+		//	fmt.Println("Crouching, rest")
+		//}
 		break
 	case "T":
+		targetSplit := strings.Split(values, ":")
+		tID, _ := strconv.Atoi(targetSplit[0])
+		tPctHP, _ := strconv.Atoi(targetSplit[1])
+		cha.tID = tID
+		cha.tPctHP = tPctHP
 		break
 	case "Z":
-		//@research find out what Z=<Zone>:???><CharID> is missing
+		//@research find out what Z=[Zone]:???>[CharID] is missing
 		vals := strings.Split(values, ":")
-		zoneLong, _ := strconv.ParseInt(vals[0], 10, 32)
+		zoneID, _ := strconv.Atoi(vals[0])
 		id := -1
 		idSplit := strings.Split(vals[1], ">")
 		if len(idSplit) > 1 { //No Zone change
-			tid, _ := strconv.ParseInt(idSplit[1], 10, 32)
-			id = int(tid)
+			tid, _ := strconv.Atoi(idSplit[1])
+			id = tid
 		}
 		cha.id = id
-		cha.zone = int(zoneLong)
+		cha.zone = zoneID
 		break
 	case "D":
 		cha.buffDur = strings.Split(values, ":")
@@ -124,7 +145,7 @@ func (cha *Character) updatePart(id string, values string) {
 		x, _ := strconv.ParseFloat(locAndQ[1], 64)
 		y, _ := strconv.ParseFloat(locAndQ[0], 64)
 		z, _ := strconv.ParseFloat(locAndQ[2], 64)
-		q, _ := strconv.ParseInt(locAndQ[3], 10, 32)
+		q, _ := strconv.Atoi(locAndQ[3])
 		newLoc := Location{x: x, y: y, z: z, q: q}
 		cha.loc = &newLoc
 		break
@@ -147,7 +168,7 @@ func (cha *Character) updatePart(id string, values string) {
 		//@research: what is this?
 		break
 	case "":
-		//it's retarded that we have to swallow this every time
+		//it's fucking stupid that we have to swallow this every time
 		break
 	default:
 		fmt.Println("Did not understand:\t", id)

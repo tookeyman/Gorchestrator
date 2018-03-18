@@ -8,7 +8,7 @@ import (
 
 func main() {
 	client := netcore.GetClientInstance()
-	client.Run()
+	//client.Run()
 	fmt.Println("Waiting for ten seconds for reasons")
 	time.Sleep(1 * time.Second)
 	client.Test()

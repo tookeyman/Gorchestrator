@@ -15,16 +15,17 @@ const (
 type Client struct {
 	socket     *socketWorker
 	asyncQue   map[string]*chan string
-	characters map[string]*character.Character
+	characters map[string]*character.Actor
 }
 
+//test method
 func (cli *Client) Test() {
 
 	fmt.Println("Waiting for one minute...")
 	for i := 0; i < 10; i++ {
-		for key := range cli.characters {
-			fmt.Printf("[%s]\t%#v\n", key, *cli.characters[key])
-		}
+		//for key := range cli.characters {
+		//	fmt.Printf("[%s]\t%#v\n", key, *cli.characters[key])
+		//}
 		time.Sleep(tick)
 	}
 	fmt.Println("Minute finished...")
@@ -32,11 +33,11 @@ func (cli *Client) Test() {
 	cli.Disconnect()
 }
 
-//creates a client, initializes it and returns its address
+//creates a client, initializes it and returns its pointer
 func GetClientInstance() *Client {
 	cli := Client{
 		asyncQue:   make(map[string]*chan string, 50), /*i dunno, seems good*/
-		characters: make(map[string]*character.Character),
+		characters: make(map[string]*character.Actor),
 	}
 	sock, err := GetSocketInstance(cli.handleSocketRead)
 	if err != nil {
@@ -69,6 +70,7 @@ func (cli *Client) handleSocketRead(message string) {
 		netBotsPayload := [2]string{matches[1], matches[2]}
 		cli.handleNetbotsPacket(netBotsPayload)
 	} else if asyncResponse.MatchString(message) {
+		//@blocking this has to block for each character being queried, or else it will dereference a null pointer
 		matches := asyncResponse.FindStringSubmatch(message)
 		asyncPayload := [2]string{matches[1], matches[2]}
 		cli.handleAsyncResponse(asyncPayload)
@@ -77,25 +79,28 @@ func (cli *Client) handleSocketRead(message string) {
 	}
 }
 
+//sends a disconnect packet to the eqbcserver
 func (cli *Client) Disconnect() {
 	cli.socket.Write(Disconnect.String())
 }
 
+//broadcasts as if you were doing a bca/a
 func (cli Client) Broadcast(message string) {
 	cli.socket.Write(fmt.Sprintf("%s %s", MsgAll, message))
 }
 
+//client method for routing netbot packets
 func (cli *Client) handleNetbotsPacket(groups [2]string) {
 	if cli.characters[groups[0]] == nil {
-		cha := character.GetCharacterInstance(groups[0], groups[1])
+		cha := character.GetActorInstance(groups[0], groups[1])
 		cli.characters[groups[0]] = cha
 	} else {
-		println("updating ", groups[0])
 		cha := cli.characters[groups[0]]
-		cha.UpdateCharacter(groups[1])
+		cha.UpdateActor(groups[1])
 	}
 }
 
+//sends out the async part of the async/await
 func (cli *Client) submitAsyncQuery(char string, response string, stringHandle *chan string) {
 	//@TODO we could probably make this completely nonblocking, but we can't enforce order without a request index, which we could do
 	payload := fmt.Sprintf("//bct Orchestrator [ASYNC]%s", response)
@@ -105,12 +110,9 @@ func (cli *Client) submitAsyncQuery(char string, response string, stringHandle *
 	}()
 }
 
+//is the await part of the character query async/await
 func (cli *Client) handleAsyncResponse(response [2]string) {
 	stringHandle := cli.asyncQue[response[0]]
 	*stringHandle <- response[1]
 	delete(cli.asyncQue, response[0])
-}
-
-func (cli *Client) Run() {
-	//do nothing
 }
