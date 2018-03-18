@@ -11,8 +11,9 @@ type Actor struct {
 	asyncChannel                                    chan string
 	buffs, buffDur                                  []string
 	hp, hpMax, mana, manaMax, end, endMax, id, zone int
-	tID, tPctHP                                     int
+	tID, tPctHP, petID, petPctHp                    int
 	loc                                             *Location
+	heading                                         float64
 }
 
 type Location struct {
@@ -50,14 +51,19 @@ func (cha *Actor) processNetbotsPacket(packet string) {
 func (cha *Actor) updatePart(id string, values string) {
 	switch id {
 	case "B":
+		//buffs
 		cha.buffs = strings.Split(values, ":")
 		break
 	case "F":
+		//todo @research what is this?
+		fmt.Println("F:", values)
 		break
 	case "C":
+		//currently casting spell id
 		cha.casting = values
 		break
 	case "E":
+		//endurance
 		vals := strings.Split(values, "/")
 		end, _ := strconv.Atoi(vals[0])
 		endMax, _ := strconv.Atoi(vals[1])
@@ -65,15 +71,19 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.endMax = endMax
 		break
 	case "X":
-		//@research: what is this?
+		//todo @research: what is this?
+		fmt.Println("X:", values)
 		break
 	case "N":
-		//@research: what is this?
+		//todo @research: what is this?
+		fmt.Println("N:", values)
 		break
 	case "L":
-		//@research: what is this?
+		//todo @research: what is this?'
+		fmt.Println("L:", values)
 		break
 	case "H":
+		//health
 		vals := strings.Split(values, "/")
 		hp, _ := strconv.Atoi(vals[0])
 		hpMax, _ := strconv.Atoi(vals[1])
@@ -81,6 +91,7 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.hpMax = hpMax
 		break
 	case "M":
+		//mana
 		vals := strings.Split(values, "/")
 		mana, _ := strconv.Atoi(vals[0])
 		manaMax, _ := strconv.Atoi(vals[1])
@@ -88,22 +99,27 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.manaMax = manaMax
 		break
 	case "W":
-		//@research: what is this?
+		//todo @research: what is this?
 		fmt.Println("W:", values)
 		break
 	case "P":
-		//@research: what is this?
-		//pet?
+		//petid:pcthp
+		petSplit := strings.Split(values, ":")
+		pID, _ := strconv.Atoi(petSplit[0])
+		pPctHP, _ := strconv.Atoi(petSplit[1])
+		cha.petID = pID
+		cha.petPctHp = pPctHP
 		break
 	case "G":
-		//@research: what is this?
-		fmt.Println("G:", values)
+		//todo memorized spells
 		break
 	case "S":
-		//@research: what is this?
+		//todo @research: what is this?
+		//songs?
 		fmt.Println("S:", values)
 		break
 	case "Y":
+		//movement/stace information i think this has info on snares and shit
 		//todo && @research: sit state
 		//parsedLong, _ := strconv.ParseInt(values, 10, 64)
 		//fmt.Println("Sit State: ", strconv.FormatInt(parsedLong, 16))
@@ -118,6 +134,7 @@ func (cha *Actor) updatePart(id string, values string) {
 		//}
 		break
 	case "T":
+		//target info
 		targetSplit := strings.Split(values, ":")
 		tID, _ := strconv.Atoi(targetSplit[0])
 		tPctHP, _ := strconv.Atoi(targetSplit[1])
@@ -125,7 +142,8 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.tPctHP = tPctHP
 		break
 	case "Z":
-		//@research find out what Z=[Zone]:???>[CharID] is missing
+		//zone/myID
+		//todo @research find out what Z=[Zone]:???>[CharID] is missing
 		vals := strings.Split(values, ":")
 		zoneID, _ := strconv.Atoi(vals[0])
 		id := -1
@@ -138,9 +156,11 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.zone = zoneID
 		break
 	case "D":
+		//buff durations
 		cha.buffDur = strings.Split(values, ":")
 		break
 	case "@":
+		//location
 		locAndQ := strings.Split(values, ":")
 		x, _ := strconv.ParseFloat(locAndQ[1], 64)
 		y, _ := strconv.ParseFloat(locAndQ[0], 64)
@@ -150,22 +170,26 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.loc = &newLoc
 		break
 	case "$":
-		//@research: what is this?
+		//heading
+		heading, _ := strconv.ParseFloat(values, 64)
+		cha.heading = heading
 		break
 	case "O":
-		//@research: what is this?
+		//todo @research: what is this?
+		fmt.Println("O:", values)
 		break
 	case "A":
-		//@research: what is this?
+		//todo @research: what is this?
+		fmt.Println("A:", values)
 		break
 	case "I":
-		//@research: what is this?
+		//todo equipment items
 		break
 	case "R":
-		//@research: what is this?
+		//todo bag contents
 		break
 	case "Q":
-		//@research: what is this?
+		//todo bag capacity
 		break
 	case "":
 		//it's fucking stupid that we have to swallow this every time
