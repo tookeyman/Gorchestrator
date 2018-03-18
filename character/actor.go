@@ -9,9 +9,9 @@ import (
 type Actor struct {
 	name, casting                                   string
 	asyncChannel                                    chan string
-	buffs, buffDur                                  []string
+	buffs, buffDur, songs, memSpells                []string
 	hp, hpMax, mana, manaMax, end, endMax, id, zone int
-	tID, tPctHP, petID, petPctHp                    int
+	tID, tPctHP, petID, petPctHp, lvl, classID      int
 	loc                                             *Location
 	heading                                         float64
 }
@@ -79,8 +79,12 @@ func (cha *Actor) updatePart(id string, values string) {
 		fmt.Println("N:", values)
 		break
 	case "L":
-		//todo @research: what is this?'
-		fmt.Println("L:", values)
+		//level:class
+		lvlSplit := strings.Split(values, ":")
+		lvl, _ := strconv.Atoi(lvlSplit[0])
+		classID, _ := strconv.Atoi(lvlSplit[1])
+		cha.lvl = lvl
+		cha.classID = classID
 		break
 	case "H":
 		//health
@@ -111,12 +115,12 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.petPctHp = pPctHP
 		break
 	case "G":
-		//todo memorized spells
+		//memorized spells
+		cha.memSpells = strings.Split(values, ":")
 		break
 	case "S":
-		//todo @research: what is this?
-		//songs?
-		fmt.Println("S:", values)
+		//songs
+		cha.songs = strings.Split(values, ":")
 		break
 	case "Y":
 		//movement/stace information i think this has info on snares and shit
@@ -142,7 +146,7 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.tPctHP = tPctHP
 		break
 	case "Z":
-		//zone/myID
+		//zone:???>myID
 		//todo @research find out what Z=[Zone]:???>[CharID] is missing
 		vals := strings.Split(values, ":")
 		zoneID, _ := strconv.Atoi(vals[0])
@@ -179,8 +183,7 @@ func (cha *Actor) updatePart(id string, values string) {
 		fmt.Println("O:", values)
 		break
 	case "A":
-		//todo @research: what is this?
-		fmt.Println("A:", values)
+		//todo AA: assigned:spent:available
 		break
 	case "I":
 		//todo equipment items
@@ -192,10 +195,9 @@ func (cha *Actor) updatePart(id string, values string) {
 		//todo bag capacity
 		break
 	case "":
-		//it's fucking stupid that we have to swallow this every time
+		//it's stupid that we have to swallow this every time
 		break
 	default:
 		fmt.Println("Did not understand:\t", id)
 	}
-
 }
