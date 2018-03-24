@@ -14,37 +14,25 @@ const (
 type Client struct {
 	socket           *socketWorker
 	asyncQue         map[string]*chan string
-	asyncQueMutex    *sync.RWMutex
+	asyncQueMutex    *sync.Mutex
 	characters       map[string]*Character
 	requestWatermark int
 }
 
 //test method
 func (cli *Client) Test() {
-	fired := false
+
 	for cli.socket.running {
-		if !fired && len(cli.characters) > 0 {
-			for key := range cli.characters {
-				char := cli.characters[key]
-				go char.Benchmark()
-			}
-			fired = true
-		} else {
-			time.Sleep(30 * time.Second)
-			if cli.requestWatermark > 0 {
-				fmt.Printf("Requests in the last 30 seconds: %d (%.2freq/sec)\n", cli.requestWatermark,
-					float64(cli.requestWatermark)/30.0)
-				cli.requestWatermark = 0
-			}
-		}
+
 	}
 }
 
 //creates a client, initializes it and returns its pointer
 func GetClientInstance() *Client {
+
 	cli := Client{
 		asyncQue:         make(map[string]*chan string, 50), /*i dunno, seems good*/
-		asyncQueMutex:    &sync.RWMutex{},
+		asyncQueMutex:    &sync.Mutex{},
 		characters:       make(map[string]*Character),
 		requestWatermark: 0,
 	}
@@ -109,11 +97,11 @@ func (cli *Client) handleNetbotsPacket(groups [2]string) {
 	}
 }
 
-//sends out the async part of the async/await
-func (cli *Client) submitAsyncQuery(char *Character, request string, stringHandle *chan string) {
+//sends out the async part of the async/await. THIS ISN'T THREAD SAFE, IT CAN ONLY HANDLE ABOUT 250 REQ/S
+func (cli *Client) submitAsyncQuery(char *Character, request string, stringChannel *chan string) {
 	payload := fmt.Sprintf("//bct Orchestrator [ASYNC]%s", request)
 	cli.asyncQueMutex.Lock()
-	cli.asyncQue[char.Name] = stringHandle
+	cli.asyncQue[char.Name] = stringChannel
 	cli.asyncQueMutex.Unlock()
 	go func() {
 		cli.SendCommandToCharacter(char.Name, payload)
@@ -122,9 +110,11 @@ func (cli *Client) submitAsyncQuery(char *Character, request string, stringHandl
 
 //is the await part of the character query async/await
 func (cli *Client) handleAsyncResponse(response [2]string) {
-	cli.asyncQueMutex.RLock()
+	cli.asyncQueMutex.Lock()
 	stringHandle := cli.asyncQue[response[0]]
-	cli.asyncQueMutex.RUnlock()
-	*stringHandle <- response[1]
+	cli.asyncQueMutex.Unlock()
+	if *stringHandle != nil {
+		*stringHandle <- response[1]
+	}
 	delete(cli.asyncQue, response[0])
 }

@@ -1,9 +1,6 @@
 package core
 
-import (
-	"fmt"
-	"time"
-)
+import ()
 
 type Character struct {
 	*Paperdoll
@@ -14,19 +11,13 @@ func GetCharacterInstance(a *Paperdoll, cli *Client) *Character {
 	return &Character{a, cli}
 }
 
-func (char *Character) Benchmark() {
-	start := time.Now()
-	iterations := 1000
-	for i := 0; i < iterations; i++ {
-		str := fmt.Sprintf("%d", i)
-		char.Query(str)
-	}
-	seconds := time.Since(start).Seconds()
-	fmt.Printf("%.2f queries/s in %.2fs\n", float64(iterations)/seconds, seconds)
-}
-
+//Returns the evaluated string of whatever you push to the character
 func (char *Character) Query(s string) string {
 	char.cli.submitAsyncQuery(char, s, &char.asyncChannel)
 	response := <-char.asyncChannel
 	return response
+}
+
+func (char *Character) DoCommand(callback func()) {
+	callback()
 }
