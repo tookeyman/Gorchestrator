@@ -1,4 +1,4 @@
-package character
+package core
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 )
 
 type Actor struct {
-	name, casting                                   string
+	Name, casting                                   string
 	asyncChannel                                    chan string
 	buffs, buffDur, songs, memSpells, petBuffs      []string
 	equipped, bagContents                           []string
@@ -28,7 +28,7 @@ type Location struct {
 
 func GetActorInstance(name string, netbotsPacket string) *Actor {
 	cha := Actor{
-		name:         name,
+		Name:         name,
 		asyncChannel: make(chan string),
 	}
 	cha.UpdateActor(netbotsPacket)
@@ -186,7 +186,7 @@ func (cha *Actor) updatePart(id string, values string) {
 		break
 	case "O":
 		//todo @research: what is this?
-		fmt.Println("O:", values)
+		cha.o = values
 		break
 	case "A":
 		//AA: assigned:spent:available

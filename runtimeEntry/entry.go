@@ -1,13 +1,13 @@
 package main
 
 import (
-	"eqbchook2/netcore"
+	"eqbchook2/core"
 	"fmt"
 	"time"
 )
 
 func main() {
-	client := netcore.GetClientInstance()
+	client := core.GetClientInstance()
 	//client.Run()
 	fmt.Println("Waiting for ten seconds for reasons")
 	time.Sleep(1 * time.Second)

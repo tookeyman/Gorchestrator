@@ -1,10 +1,8 @@
-package netcore
+package core
 
 import (
 	"fmt"
 	"regexp"
-	//"strconv"
-	"eqbchook2/character"
 	"time"
 )
 
@@ -15,12 +13,20 @@ const (
 type Client struct {
 	socket     *socketWorker
 	asyncQue   map[string]*chan string
-	characters map[string]*character.Character
+	characters map[string]*Character
 }
 
 //test method
 func (cli *Client) Test() {
+	fired := false
 	for cli.socket.running {
+		if !fired && len(cli.characters) > 0 {
+			for key := range cli.characters {
+				char := cli.characters[key]
+				char.Benchmark()
+			}
+			fired = true
+		}
 		//fmt.Println("Waiting for one minute...")
 		//for i := 0; i < 10; i++ {
 		//for key := range cli.characters {
@@ -38,7 +44,7 @@ func (cli *Client) Test() {
 func GetClientInstance() *Client {
 	cli := Client{
 		asyncQue:   make(map[string]*chan string, 50), /*i dunno, seems good*/
-		characters: make(map[string]*character.Character),
+		characters: make(map[string]*Character),
 	}
 	sock, err := GetSocketInstance(cli.handleSocketRead)
 	if err != nil {
@@ -93,8 +99,8 @@ func (cli Client) Broadcast(message string) {
 //client method for routing netbot packets
 func (cli *Client) handleNetbotsPacket(groups [2]string) {
 	if cli.characters[groups[0]] == nil {
-		cha := character.GetActorInstance(groups[0], groups[1])
-		cli.characters[groups[0]] = character.GetCharacterInstance(cha)
+		cha := GetActorInstance(groups[0], groups[1])
+		cli.characters[groups[0]] = GetCharacterInstance(cha, cli)
 	} else {
 		cha := cli.characters[groups[0]]
 		cha.UpdateActor(groups[1])
@@ -102,12 +108,11 @@ func (cli *Client) handleNetbotsPacket(groups [2]string) {
 }
 
 //sends out the async part of the async/await
-func (cli *Client) submitAsyncQuery(charName string, response string, stringHandle *chan string) {
-	//@TODO we could probably make this completely nonblocking, but we can't enforce order without a request index, which we could do
-	payload := fmt.Sprintf("//bct Orchestrator [ASYNC]%s", response)
-	cli.asyncQue[charName] = stringHandle
+func (cli *Client) submitAsyncQuery(char *Character, request string, stringHandle *chan string) {
+	payload := fmt.Sprintf("//squelch /bct Orchestrator [ASYNC]%s", request)
+	cli.asyncQue[char.Name] = stringHandle
 	go func() {
-		cli.SendCommandToCharacter(charName, payload)
+		cli.SendCommandToCharacter(char.Name, payload)
 	}()
 }
 

@@ -1,4 +1,4 @@
-package netcore
+package core
 
 type packet int
 

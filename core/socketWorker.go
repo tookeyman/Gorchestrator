@@ -1,4 +1,4 @@
-package netcore
+package core
 
 import (
 	"bufio"
@@ -44,7 +44,7 @@ func (sock *socketWorker) init() {
 	if err != nil {
 		fmt.Printf("[socketWorker]\tERROR:%s\n", err)
 	}
-	//establish connection and creater readers/writers
+	//establish connection and creator readers/writers
 	sock.conn = connection
 	sock.reader = *bufio.NewReader(sock.conn)
 	//start working threads
@@ -67,7 +67,7 @@ func (sock *socketWorker) run() {
 				packet = append(packet, byte('\n'))
 			}
 			sock.conn.Write(packet)
-			fmt.Printf("[socketWorker]\tWriting: %s\n", string(outGoing))
+			//fmt.Printf("[socketWorker]\tWriting: %s\n", string(outGoing))
 			break
 		}
 	}
