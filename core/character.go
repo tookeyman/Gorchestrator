@@ -6,11 +6,11 @@ import (
 )
 
 type Character struct {
-	*Actor
+	*Paperdoll
 	cli *Client
 }
 
-func GetCharacterInstance(a *Actor, cli *Client) *Character {
+func GetCharacterInstance(a *Paperdoll, cli *Client) *Character {
 	return &Character{a, cli}
 }
 
@@ -19,7 +19,7 @@ func (char *Character) Benchmark() {
 	iterations := 1000
 	for i := 0; i < iterations; i++ {
 		str := fmt.Sprintf("%d", i)
-		fmt.Println(char.Query(str))
+		char.Query(str)
 	}
 	seconds := time.Since(start).Seconds()
 	fmt.Printf("%.2f queries/s in %.2fs\n", float64(iterations)/seconds, seconds)

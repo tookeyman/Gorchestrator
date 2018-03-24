@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"regexp"
+	"sync"
 	"time"
 )
 
@@ -11,9 +12,11 @@ const (
 )
 
 type Client struct {
-	socket     *socketWorker
-	asyncQue   map[string]*chan string
-	characters map[string]*Character
+	socket           *socketWorker
+	asyncQue         map[string]*chan string
+	asyncQueMutex    *sync.RWMutex
+	characters       map[string]*Character
+	requestWatermark int
 }
 
 //test method
@@ -23,28 +26,27 @@ func (cli *Client) Test() {
 		if !fired && len(cli.characters) > 0 {
 			for key := range cli.characters {
 				char := cli.characters[key]
-				char.Benchmark()
+				go char.Benchmark()
 			}
 			fired = true
+		} else {
+			time.Sleep(30 * time.Second)
+			if cli.requestWatermark > 0 {
+				fmt.Printf("Requests in the last 30 seconds: %d (%.2freq/sec)\n", cli.requestWatermark,
+					float64(cli.requestWatermark)/30.0)
+				cli.requestWatermark = 0
+			}
 		}
-		//fmt.Println("Waiting for one minute...")
-		//for i := 0; i < 10; i++ {
-		//for key := range cli.characters {
-		//	fmt.Printf("[%s]\t%#v\n", key, *cli.characters[key])
-		//}
-		//	time.Sleep(tick)
-		//}
-		//fmt.Println("Minute finished...")
-		//cli.socket.ToggleRunning()
-		//cli.Disconnect()
 	}
 }
 
 //creates a client, initializes it and returns its pointer
 func GetClientInstance() *Client {
 	cli := Client{
-		asyncQue:   make(map[string]*chan string, 50), /*i dunno, seems good*/
-		characters: make(map[string]*Character),
+		asyncQue:         make(map[string]*chan string, 50), /*i dunno, seems good*/
+		asyncQueMutex:    &sync.RWMutex{},
+		characters:       make(map[string]*Character),
+		requestWatermark: 0,
 	}
 	sock, err := GetSocketInstance(cli.handleSocketRead)
 	if err != nil {
@@ -64,7 +66,7 @@ func (cli *Client) SendCommandToCharacter(characterName string, command string) 
 func (cli *Client) handleSocketRead(message string) {
 	netBots := regexp.MustCompile(`^.*NBPKT:(\w+):\[NB]\|(.*)\[NB]\n$`)
 	asyncResponse := regexp.MustCompile(`^\[(\w+)] \[ASYNC](.*)\n$`)
-
+	cli.requestWatermark++
 	switch message {
 	case "\tPING\n":
 		cli.socket.Write(Pong.String())
@@ -99,18 +101,20 @@ func (cli Client) Broadcast(message string) {
 //client method for routing netbot packets
 func (cli *Client) handleNetbotsPacket(groups [2]string) {
 	if cli.characters[groups[0]] == nil {
-		cha := GetActorInstance(groups[0], groups[1])
+		cha := GetPaperdollInstance(groups[0], groups[1])
 		cli.characters[groups[0]] = GetCharacterInstance(cha, cli)
 	} else {
 		cha := cli.characters[groups[0]]
-		cha.UpdateActor(groups[1])
+		cha.UpdatePaperdoll(groups[1])
 	}
 }
 
 //sends out the async part of the async/await
 func (cli *Client) submitAsyncQuery(char *Character, request string, stringHandle *chan string) {
-	payload := fmt.Sprintf("//squelch /bct Orchestrator [ASYNC]%s", request)
+	payload := fmt.Sprintf("//bct Orchestrator [ASYNC]%s", request)
+	cli.asyncQueMutex.Lock()
 	cli.asyncQue[char.Name] = stringHandle
+	cli.asyncQueMutex.Unlock()
 	go func() {
 		cli.SendCommandToCharacter(char.Name, payload)
 	}()
@@ -118,7 +122,9 @@ func (cli *Client) submitAsyncQuery(char *Character, request string, stringHandl
 
 //is the await part of the character query async/await
 func (cli *Client) handleAsyncResponse(response [2]string) {
+	cli.asyncQueMutex.RLock()
 	stringHandle := cli.asyncQue[response[0]]
+	cli.asyncQueMutex.RUnlock()
 	*stringHandle <- response[1]
 	delete(cli.asyncQue, response[0])
 }
