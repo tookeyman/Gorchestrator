@@ -15,29 +15,30 @@ const (
 type Client struct {
 	socket     *socketWorker
 	asyncQue   map[string]*chan string
-	characters map[string]*character.Actor
+	characters map[string]*character.Character
 }
 
 //test method
 func (cli *Client) Test() {
-
-	fmt.Println("Waiting for one minute...")
-	for i := 0; i < 10; i++ {
+	for cli.socket.running {
+		//fmt.Println("Waiting for one minute...")
+		//for i := 0; i < 10; i++ {
 		//for key := range cli.characters {
 		//	fmt.Printf("[%s]\t%#v\n", key, *cli.characters[key])
 		//}
-		time.Sleep(tick)
+		//	time.Sleep(tick)
+		//}
+		//fmt.Println("Minute finished...")
+		//cli.socket.ToggleRunning()
+		//cli.Disconnect()
 	}
-	fmt.Println("Minute finished...")
-	cli.socket.ToggleRunning()
-	cli.Disconnect()
 }
 
 //creates a client, initializes it and returns its pointer
 func GetClientInstance() *Client {
 	cli := Client{
 		asyncQue:   make(map[string]*chan string, 50), /*i dunno, seems good*/
-		characters: make(map[string]*character.Actor),
+		characters: make(map[string]*character.Character),
 	}
 	sock, err := GetSocketInstance(cli.handleSocketRead)
 	if err != nil {
@@ -93,7 +94,7 @@ func (cli Client) Broadcast(message string) {
 func (cli *Client) handleNetbotsPacket(groups [2]string) {
 	if cli.characters[groups[0]] == nil {
 		cha := character.GetActorInstance(groups[0], groups[1])
-		cli.characters[groups[0]] = cha
+		cli.characters[groups[0]] = character.GetCharacterInstance(cha)
 	} else {
 		cha := cli.characters[groups[0]]
 		cha.UpdateActor(groups[1])
@@ -101,12 +102,12 @@ func (cli *Client) handleNetbotsPacket(groups [2]string) {
 }
 
 //sends out the async part of the async/await
-func (cli *Client) submitAsyncQuery(char string, response string, stringHandle *chan string) {
+func (cli *Client) submitAsyncQuery(charName string, response string, stringHandle *chan string) {
 	//@TODO we could probably make this completely nonblocking, but we can't enforce order without a request index, which we could do
 	payload := fmt.Sprintf("//bct Orchestrator [ASYNC]%s", response)
-	cli.asyncQue[char] = stringHandle
+	cli.asyncQue[charName] = stringHandle
 	go func() {
-		cli.SendCommandToCharacter(char, payload)
+		cli.SendCommandToCharacter(charName, payload)
 	}()
 }
 

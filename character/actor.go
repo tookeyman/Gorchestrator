@@ -9,11 +9,16 @@ import (
 type Actor struct {
 	name, casting                                   string
 	asyncChannel                                    chan string
-	buffs, buffDur, songs, memSpells                []string
+	buffs, buffDur, songs, memSpells, petBuffs      []string
+	equipped, bagContents                           []string
+	bagCapacity                                     []int
 	hp, hpMax, mana, manaMax, end, endMax, id, zone int
 	tID, tPctHP, petID, petPctHp, lvl, classID      int
+	aaAssigned, aaSpent, aaAvailable                int
 	loc                                             *Location
 	heading                                         float64
+	//unknown section
+	f, x, n, o string
 }
 
 type Location struct {
@@ -36,6 +41,7 @@ func (cha *Actor) UpdateActor(packet string) {
 }
 
 func (cha *Actor) processNetbotsPacket(packet string) {
+	//fmt.Println(packet)
 	parts := strings.Split(packet, "|")
 	for _, part := range parts {
 		pack := strings.Split(part, "=")
@@ -56,7 +62,7 @@ func (cha *Actor) updatePart(id string, values string) {
 		break
 	case "F":
 		//todo @research what is this?
-		fmt.Println("F:", values)
+		cha.f = values
 		break
 	case "C":
 		//currently casting spell id
@@ -72,11 +78,11 @@ func (cha *Actor) updatePart(id string, values string) {
 		break
 	case "X":
 		//todo @research: what is this?
-		fmt.Println("X:", values)
+		cha.x = values
 		break
 	case "N":
 		//todo @research: what is this?
-		fmt.Println("N:", values)
+		cha.n = values
 		break
 	case "L":
 		//level:class
@@ -103,8 +109,8 @@ func (cha *Actor) updatePart(id string, values string) {
 		cha.manaMax = manaMax
 		break
 	case "W":
-		//todo @research: what is this?
-		fmt.Println("W:", values)
+		//pet buffs
+		cha.petBuffs = strings.Split(values, ":")
 		break
 	case "P":
 		//petid:pcthp
@@ -128,7 +134,7 @@ func (cha *Actor) updatePart(id string, values string) {
 		//parsedLong, _ := strconv.ParseInt(values, 10, 64)
 		//fmt.Println("Sit State: ", strconv.FormatInt(parsedLong, 16))
 		//standingRest := 0x10
-		//standingMove := 02000
+		////standingMove := 02000
 		//if int(parsedLong) == standingRest{
 		//	fmt.Println("Standing, rest")
 		//}else if int(parsedLong) == (standingRest << 1){
@@ -183,16 +189,29 @@ func (cha *Actor) updatePart(id string, values string) {
 		fmt.Println("O:", values)
 		break
 	case "A":
-		//todo AA: assigned:spent:available
+		//AA: assigned:spent:available
+		stringValues := strings.Split(values, ":")
+		cha.aaAssigned, _ = strconv.Atoi(stringValues[0])
+		cha.aaSpent, _ = strconv.Atoi(stringValues[1])
+		cha.aaAvailable, _ = strconv.Atoi(stringValues[2])
 		break
 	case "I":
-		//todo equipment items
+		//equipment items
+		cha.equipped = strings.Split(values, ":")
 		break
 	case "R":
-		//todo bag contents
+		//bag contents
+		cha.bagContents = strings.Split(values, ":")
 		break
 	case "Q":
-		//todo bag capacity
+		//bag capacity
+		stringArr := strings.Split(values, ":")
+		bagArr := make([]int, len(stringArr))
+		for i, item := range stringArr {
+			capacity, _ := strconv.Atoi(item)
+			bagArr[i] = capacity
+		}
+		cha.bagCapacity = bagArr
 		break
 	case "":
 		//it's stupid that we have to swallow this every time
