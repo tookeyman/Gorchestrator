@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type Paperdoll struct {
+type PaperDoll struct {
 	Name, casting                                   string
 	asyncChannel                                    chan string
 	buffs, buffDur, songs, memSpells, petBuffs      []string
@@ -26,8 +26,8 @@ type Location struct {
 	q       int
 }
 
-func GetPaperdollInstance(name string, netbotsPacket string) *Paperdoll {
-	cha := Paperdoll{
+func GetPaperdollInstance(name string, netbotsPacket string) *PaperDoll {
+	cha := PaperDoll{
 		Name:         name,
 		asyncChannel: make(chan string),
 	}
@@ -35,12 +35,12 @@ func GetPaperdollInstance(name string, netbotsPacket string) *Paperdoll {
 	return &cha
 }
 
-func (cha *Paperdoll) UpdatePaperdoll(packet string) {
+func (cha *PaperDoll) UpdatePaperdoll(packet string) {
 	cha.processNetbotsPacket(packet)
 	//@design: what else do we need to do on character update?
 }
 
-func (cha *Paperdoll) processNetbotsPacket(packet string) {
+func (cha *PaperDoll) processNetbotsPacket(packet string) {
 	//fmt.Println(packet)
 	parts := strings.Split(packet, "|")
 	for _, part := range parts {
@@ -54,7 +54,7 @@ func (cha *Paperdoll) processNetbotsPacket(packet string) {
 	}
 }
 
-func (cha *Paperdoll) updatePart(id string, values string) {
+func (cha *PaperDoll) updatePart(id string, values string) {
 	switch id {
 	case "B":
 		//buffs
