@@ -1,6 +1,7 @@
 package core
 
 import (
+	"eqbchook2/functional"
 	"fmt"
 	"io/ioutil"
 )
@@ -13,27 +14,73 @@ type settings struct {
 
 func ReadSettingsFile(name string) *settings {
 	filePath := fmt.Sprintf("d:/MQ2/Orchestrator/%s.props", name)
-	contents, err := ioutil.ReadFile(filePath)
+	content, err := ioutil.ReadFile(filePath)
+	blankSettings := &settings{
+		buffsAvailable: make([]string, 0),
+		buffsNeeded:    make([]string, 0),
+		isDefault:      true,
+	}
 	if err != nil {
 		createDefaultSettings(filePath)
-		return &settings{
-			buffsAvailable: make([]string, 0),
-			buffsNeeded:    make([]string, 0),
-			isDefault:      true,
-		}
+		return blankSettings
 	}
-	return parseSettingsFile(contents)
+	if checkFileForDefault(content) {
+		return blankSettings
+	}
+	return parseSettingsFile(content)
 }
 
 func parseSettingsFile(data []byte) *settings {
-	if checkFileForDefault(data) {
-		return &settings{
-			buffsAvailable: make([]string, 0),
-			buffsNeeded:    make([]string, 0),
-			isDefault:      true,
+	neededBuffs := make([]string, 0)
+	availableBuffs := make([]string, 0)
+	asString := string(data)
+	fmt.Printf("Parsed Settings File: %#v\n", removeComments(asString))
+	return &settings{
+		buffsAvailable: availableBuffs,
+		buffsNeeded:    neededBuffs,
+		isDefault:      false,
+	}
+}
+
+func removeComments(lines string) string {
+	comment := false
+	contents := ""
+	for i := 0; i < len(lines)-1; i++ {
+		char := byte(lines[i])
+		nextChar := byte(lines[i+1])
+		if char == byte('/') && nextChar == byte('/') {
+			comment = true
+		}
+
+		if !comment {
+			contents += string(char)
+			if i == len(lines)-1 {
+				contents += string(nextChar)
+			}
+		}
+		if comment && char == byte('\n') {
+			comment = false
 		}
 	}
-	return nil
+	return contents
+}
+
+func isNotComment(line string) bool {
+	if len(line) < 2 {
+		return true
+	}
+	offset := 0
+	for i := 0; i < len(line); i++ {
+		if functional.IsWhiteSpace(byte(line[i])) {
+			offset += 1
+		} else {
+			break
+		}
+	}
+	if offset+2 > len(line) {
+		return true
+	}
+	return line[offset:offset+2] != "//"
 }
 
 func checkFileForDefault(contents []byte) bool {
@@ -45,7 +92,7 @@ func checkFileForDefault(contents []byte) bool {
 }
 
 func createDefaultSettings(filePath string) {
-	contents := "isDefault\t\t//Delete this line!!!\n[Buffs Available]\n//List buffs here. One per line. " +
+	contents := "isDefault\t//Delete this line!!!\n[Buffs Available]\n//List buffs here. One per line. " +
 		"Either exact name or spell ID number.\n[Buffs Needed]\n//List buffs here. One per line. " +
 		"Either exact name or spell ID number."
 	err := ioutil.WriteFile(filePath, []byte(contents), 0777)
