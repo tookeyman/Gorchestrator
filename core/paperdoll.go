@@ -130,7 +130,7 @@ func (cha *PaperDoll) updatePart(id string, values string) {
 		break
 	case "Y":
 		//movement/stace information i think this has info on snares and shit
-		//todo && @research: sit state
+		//todo && @research: sit state and all the bitwise logic
 		//parsedLong, _ := strconv.ParseInt(values, 10, 64)
 		//fmt.Println("Sit State: ", strconv.FormatInt(parsedLong, 16))
 		//standingRest := 0x10

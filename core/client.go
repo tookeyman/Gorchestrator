@@ -54,7 +54,9 @@ func (cli *Client) SendCommandToCharacter(characterName string, command string) 
 func (cli *Client) handleSocketRead(message string) {
 	netBots := regexp.MustCompile(`^.*NBPKT:(\w+):\[NB]\|(.*)\[NB]\n$`)
 	asyncResponse := regexp.MustCompile(`^\[(\w+)] \[ASYNC](.*)\n$`)
-	cli.requestWatermark++
+	if len(cli.socket.readChannel) > cli.requestWatermark {
+		cli.requestWatermark = len(cli.socket.readChannel)
+	}
 	switch message {
 	case "\tPING\n":
 		cli.socket.Write(Pong.String())

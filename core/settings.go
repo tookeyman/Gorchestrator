@@ -1,7 +1,6 @@
 package core
 
 import (
-	"eqbchook2/functional"
 	"fmt"
 	"io/ioutil"
 )
@@ -33,12 +32,13 @@ func ReadSettingsFile(name string) *settings {
 func parseSettingsFile(data []byte) *settings {
 	neededBuffs := make([]string, 0)
 	availableBuffs := make([]string, 0)
-	asString := string(data)
+	asString := removeComments(string(data))
+
 	fmt.Printf("Parsed Settings File: %#v\n", removeComments(asString))
 	return &settings{
 		buffsAvailable: availableBuffs,
 		buffsNeeded:    neededBuffs,
-		isDefault:      false,
+		isDefault:      asString[0:9] == "isDefault",
 	}
 }
 
@@ -63,24 +63,6 @@ func removeComments(lines string) string {
 		}
 	}
 	return contents
-}
-
-func isNotComment(line string) bool {
-	if len(line) < 2 {
-		return true
-	}
-	offset := 0
-	for i := 0; i < len(line); i++ {
-		if functional.IsWhiteSpace(byte(line[i])) {
-			offset += 1
-		} else {
-			break
-		}
-	}
-	if offset+2 > len(line) {
-		return true
-	}
-	return line[offset:offset+2] != "//"
 }
 
 func checkFileForDefault(contents []byte) bool {
