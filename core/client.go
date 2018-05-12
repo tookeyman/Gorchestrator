@@ -21,9 +21,15 @@ type Client struct {
 
 //test method
 func (cli *Client) Test() {
-
+	//fired:= false
 	for cli.socket.running {
-
+		//time.Sleep(3*time.Second)
+		//if !fired{
+		//	for _, char := range cli.characters{
+		//		go char.Benchmark()
+		//	}
+		//}
+		//fired = true
 	}
 }
 
@@ -99,7 +105,7 @@ func (cli *Client) handleNetbotsPacket(groups [2]string) {
 	}
 }
 
-//sends out the async part of the async/await. THIS ISN'T THREAD SAFE, IT CAN ONLY HANDLE ABOUT 250 REQ/S
+//sends out the async part of the async/await. IT CAN HANDLE ABOUT 250 REQ/S
 func (cli *Client) submitAsyncQuery(char *Character, request string, stringChannel *chan string) {
 	payload := fmt.Sprintf("//bct Orchestrator [ASYNC]%s", request)
 	cli.asyncQueMutex.Lock()
@@ -108,15 +114,16 @@ func (cli *Client) submitAsyncQuery(char *Character, request string, stringChann
 	go func() {
 		cli.SendCommandToCharacter(char.Name, payload)
 	}()
+
 }
 
 //is the await part of the character query async/await
 func (cli *Client) handleAsyncResponse(response [2]string) {
 	cli.asyncQueMutex.Lock()
 	stringHandle := cli.asyncQue[response[0]]
-	cli.asyncQueMutex.Unlock()
 	if *stringHandle != nil {
 		*stringHandle <- response[1]
 	}
 	delete(cli.asyncQue, response[0])
+	cli.asyncQueMutex.Unlock()
 }

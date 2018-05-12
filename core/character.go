@@ -1,15 +1,33 @@
 package core
 
 import (
+	"fmt"
 	"time"
 )
 
 func GetCharacterInstance(a *PaperDoll, cli *Client) *Character {
 	props := ReadSettingsFile(a.Name)
-	char := &Character{a, cli, props, make(chan Command, 50), REST}
+	char := &Character{a, cli, props, make(chan *Command, 50), REST}
 	go char.initiateCommandQueue()
 	char.SubmitCommand(createPropertiesValidationCommand(char))
 	return char
+}
+
+func (char *Character) Benchmark() {
+	fmt.Println("Starting benchmark for", char.Name)
+	count := 0
+	totalTime := int64(0)
+
+	for i := 0; i < 1000; i++ {
+		start := time.Now()
+		char.Query(fmt.Sprintf("req: %d", i))
+		dur := time.Since(start).Nanoseconds()
+		count += 1
+		totalTime += dur
+	}
+
+	fmt.Printf("%s finished %d reqs in %dns of total time. %f avg\n",
+		char.Name, count, totalTime, float32(totalTime/int64(count)))
 }
 
 func createPropertiesValidationCommand(char *Character) *Command {
@@ -31,14 +49,16 @@ func createPropertiesValidationCommand(char *Character) *Command {
 }
 
 func (char *Character) SubmitCommand(command *Command) {
-	char.commandQue <- *command
+	char.commandQue <- command
 }
 
 func (char *Character) initiateCommandQueue() {
-	for char.cli.socket.running || len(char.commandQue) > 0 {
-		currentCommand := <-char.commandQue
-		if currentCommand.matchesState(char.currentState) {
-			currentCommand.commandCallBack()
+	for char.cli.socket.running {
+		select {
+		case currentCommand := <-char.commandQue:
+			if currentCommand.matchesState(char.currentState) {
+				currentCommand.commandCallBack()
+			}
 		}
 	}
 }
@@ -72,7 +92,7 @@ type Character struct {
 	*PaperDoll
 	cli          *Client
 	props        *settings
-	commandQue   chan Command
+	commandQue   chan *Command
 	currentState CharacterState
 }
 type CharacterState uint
