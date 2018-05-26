@@ -5,6 +5,28 @@ import (
 	"time"
 )
 
+type (
+	CharacterState uint8
+	Command        struct {
+		validStates     []CharacterState
+		commandCallBack func()
+	}
+	Character struct {
+		*PaperDoll
+		cli          *Client
+		props        *settings
+		commandQue   chan *Command
+		currentState CharacterState
+	}
+)
+
+const (
+	ANY_STATE CharacterState = iota
+	REST
+	FOLLOW
+	COMBAT
+)
+
 func GetCharacterInstance(a *PaperDoll, cli *Client) *Character {
 	props := ReadSettingsFile(a.Name)
 	char := &Character{a, cli, props, make(chan *Command, 50), REST}
@@ -82,24 +104,3 @@ func (com *Command) matchesState(state CharacterState) bool {
 func CreateCharacterCommand(callBack func(), validStates ...CharacterState) *Command {
 	return &Command{validStates: validStates, commandCallBack: callBack}
 }
-
-type Command struct {
-	validStates     []CharacterState
-	commandCallBack func()
-}
-
-type Character struct {
-	*PaperDoll
-	cli          *Client
-	props        *settings
-	commandQue   chan *Command
-	currentState CharacterState
-}
-type CharacterState uint
-
-const (
-	ANY_STATE CharacterState = iota
-	REST
-	FOLLOW
-	COMBAT
-)

@@ -6,25 +6,27 @@ import (
 	"strings"
 )
 
-type PaperDoll struct {
-	Name, casting                                   string
-	asyncChannel                                    chan string
-	buffs, buffDur, songs, memSpells, petBuffs      []string
-	equipped, bagContents                           []string
-	bagCapacity                                     []int
-	hp, hpMax, mana, manaMax, end, endMax, id, zone int
-	tID, tPctHP, petID, petPctHp, lvl, classID      int
-	aaAssigned, aaSpent, aaAvailable                int
-	loc                                             *Location
-	heading                                         float64
-	//unknown section
-	f, x, n, o string
-}
+type (
+	PaperDoll struct {
+		Name, casting                                   string
+		asyncChannel                                    chan string
+		buffs, buffDur, songs, memSpells, petBuffs      []string
+		equipped, bagContents                           []string
+		bagCapacity                                     []int
+		hp, hpMax, mana, manaMax, end, endMax, id, zone int
+		tID, tPctHP, petID, petPctHp, lvl, classID      int
+		aaAssigned, aaSpent, aaAvailable                int
+		loc                                             *Location
+		heading                                         float64
+		//unknown section
+		f, x, n, o string
+	}
 
-type Location struct {
-	x, y, z float64
-	q       int
-}
+	Location struct {
+		x, y, z float64
+		q       int
+	}
+)
 
 func GetPaperdollInstance(name string, netbotsPacket string) *PaperDoll {
 	cha := PaperDoll{
