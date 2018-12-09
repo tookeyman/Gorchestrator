@@ -17,6 +17,7 @@ type Client struct {
 	asyncQueMutex    *sync.Mutex
 	characters       map[string]*Character
 	requestWatermark int
+	characterManager CharacterGraphManager
 }
 
 //test method
@@ -41,13 +42,26 @@ func GetClientInstance() *Client {
 		asyncQueMutex:    &sync.Mutex{},
 		characters:       make(map[string]*Character),
 		requestWatermark: 0,
+		characterManager: CreateCharacterManager(),
 	}
 	sock, err := GetSocketInstance(cli.handleSocketRead)
 	if err != nil {
 		fmt.Printf("[CLIENT]\tClient instance creation failed: %s\n", err)
 	}
 	cli.socket = sock
+	defer cli.startMonitorThreads()
 	return &cli
+}
+
+func (cli *Client) startMonitorThreads() {
+	go cli.checkBuffs()
+}
+
+func (cli *Client) checkBuffs() {
+	for cli.socket.running {
+		cli.characterManager.CheckBuffs(&cli.characters)
+		time.Sleep(5 * time.Second)
+	}
 }
 
 //probably poorly named. sends the command string to the character name
@@ -114,7 +128,6 @@ func (cli *Client) submitAsyncQuery(char *Character, request string, stringChann
 	go func() {
 		cli.SendCommandToCharacter(char.Name, payload)
 	}()
-
 }
 
 //is the await part of the character query async/await

@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -14,9 +15,9 @@ type (
 	Character struct {
 		*PaperDoll
 		cli          *Client
-		props        *settings
-		commandQue   chan *Command
-		currentState CharacterState
+		Props        *settings
+		CommandQue   chan *Command
+		CurrentState CharacterState
 	}
 )
 
@@ -61,7 +62,7 @@ func createPropertiesValidationCommand(char *Character) *Command {
 	idleCommand := CreateCharacterCommand(sitAndDoNothing, ANY_STATE)
 
 	checkForDefaultProps := func() {
-		if char.props.isDefault {
+		if char.Props.isDefault {
 			for i := 0; i < 10; i++ {
 				char.SubmitCommand(idleCommand)
 			}
@@ -71,14 +72,14 @@ func createPropertiesValidationCommand(char *Character) *Command {
 }
 
 func (char *Character) SubmitCommand(command *Command) {
-	char.commandQue <- command
+	char.CommandQue <- command
 }
 
 func (char *Character) initiateCommandQueue() {
 	for char.cli.socket.running {
 		select {
-		case currentCommand := <-char.commandQue:
-			if currentCommand.matchesState(char.currentState) {
+		case currentCommand := <-char.CommandQue:
+			if currentCommand.matchesState(char.CurrentState) {
 				currentCommand.commandCallBack()
 			}
 		}
@@ -92,6 +93,11 @@ func (char *Character) Query(s string) string {
 	return response
 }
 
+//
+func (char *Character) SlashCommand(s string) {
+	char.cli.SendCommandToCharacter(char.Name, "/"+s)
+}
+
 func (com *Command) matchesState(state CharacterState) bool {
 	for i := range com.validStates {
 		if com.validStates[i] == state || com.validStates[i] == ANY_STATE {
@@ -99,6 +105,35 @@ func (com *Command) matchesState(state CharacterState) bool {
 		}
 	}
 	return false
+}
+
+func (char *Character) CreateSpellCommand(spell string, target string, validState CharacterState) *Command {
+	callBack := func() {
+		for char.casting == "c" {
+			time.Sleep(100 * time.Millisecond)
+		}
+		spellCheck := fmt.Sprintf("${Raid.Member[%s]}@${Group.Member[%s]}@${Spawn[pc %s]}", target, target, target)
+		queryPacket := strings.Split(char.Query(spellCheck), "@")
+		isRaidMember := queryPacket[0] != "NULL"
+		isGroupMember := queryPacket[1] != "NULL"
+		isPC := queryPacket[3] != "NULL"
+
+		if isGroupMember {
+			char.SlashCommand(fmt.Sprintf("/g Casting %s on %s", spell, target))
+		} else if isRaidMember {
+			char.SlashCommand(fmt.Sprintf("/raid Casting %s on %s", spell, target))
+		} else if isPC {
+			char.SlashCommand(fmt.Sprintf("/tell %s Casting %s on you", target, spell))
+		}
+
+		spellCastCommand := fmt.Sprintf("/casting %s %s", spell, target)
+		char.SlashCommand(spellCastCommand)
+		time.Sleep(300 * time.Millisecond)
+		for char.casting == "c" {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	return CreateCharacterCommand(callBack, validState)
 }
 
 func CreateCharacterCommand(callBack func(), validStates ...CharacterState) *Command {

@@ -11,6 +11,11 @@ type settings struct {
 	isDefault      bool
 }
 
+const (
+	buffsAvailableHeader = "Buffs Available"
+	buffsNeededHeader    = "Buffs Needed"
+)
+
 func ReadSettingsFile(name string) *settings {
 	filePath := fmt.Sprintf("d:/MQ2/Orchestrator/%s.props", name)
 	content, err := ioutil.ReadFile(filePath)
@@ -30,16 +35,67 @@ func ReadSettingsFile(name string) *settings {
 }
 
 func parseSettingsFile(data []byte) *settings {
-	neededBuffs := make([]string, 0)
-	availableBuffs := make([]string, 0)
-	asString := removeComments(string(data))
 
-	fmt.Printf("Parsed Settings File: %#v\n", removeComments(asString))
+	asString := removeComments(string(data))
+	cleanRawSettings := removeComments(asString)
+	settingsMap := getSettingsMap(cleanRawSettings)
+	fmt.Printf("SettingsMap:\n%#v\n", settingsMap)
+	neededBuffs := settingsMap[buffsNeededHeader]
+	availableBuffs := settingsMap[buffsAvailableHeader]
 	return &settings{
 		buffsAvailable: availableBuffs,
 		buffsNeeded:    neededBuffs,
 		isDefault:      asString[0:9] == "isDefault",
 	}
+}
+
+func getSettingsMap(clean string) map[string][]string {
+	fmt.Println(clean)
+	m := make(map[string][]string)
+	interestPointer := -1
+	inHeader := false
+	currentHeader := ""
+	currentOptionsBuffer := make([]string, 100)
+	currentOptionsLen := 0
+	for idx, c := range clean {
+		if c == ']' {
+			if !inHeader {
+				panic("Illegal ']' character outside of setting header")
+			}
+			currentHeader = string(clean[interestPointer+1 : idx])
+			inHeader = false
+		}
+		if inHeader {
+			continue
+		}
+		if c == '[' {
+			interestPointer = idx
+			inHeader = true
+			if len(currentHeader) > 0 {
+				m[currentHeader] = currentOptionsBuffer[0:currentOptionsLen]
+				currentHeader = ""
+				currentOptionsBuffer = make([]string, 100)
+				currentOptionsLen = 0
+			}
+		}
+		if c == '\n' {
+			if clean[idx-1] == ']' {
+				interestPointer = idx
+				continue
+			}
+			line := string(clean[interestPointer+1 : idx])
+			currentOptionsBuffer[currentOptionsLen] = line
+			currentOptionsLen++
+			fmt.Println("found ", line, "in ", currentHeader)
+		}
+	}
+	if !inHeader {
+		line := string(clean[interestPointer+1:])
+		fmt.Println("Final line: ", line)
+		currentOptionsBuffer[currentOptionsLen] = line
+		m[currentHeader] = currentOptionsBuffer[0:currentOptionsLen]
+	}
+	return m
 }
 
 func removeComments(lines string) string {
@@ -74,8 +130,8 @@ func checkFileForDefault(contents []byte) bool {
 }
 
 func createDefaultSettings(filePath string) {
-	contents := "isDefault\t//Delete this line!!!\n[Buffs Available]\n//List buffs here. One per line. " +
-		"Either exact name or spell ID number.\n[Buffs Needed]\n//List buffs here. One per line. " +
+	contents := "isDefault\t//Delete this line!!!\n[" + buffsAvailableHeader + "]\n//List buffs here. One per line. " +
+		"Either exact name or spell ID number.\n[" + buffsNeededHeader + "]\n//List buffs here. One per line. " +
 		"Either exact name or spell ID number."
 	err := ioutil.WriteFile(filePath, []byte(contents), 0777)
 	if err != nil {
